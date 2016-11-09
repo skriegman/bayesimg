@@ -31,9 +31,10 @@ def empirical(bw_img, neighborhood):
     return distribution
 
 
-orig_img_bw = misc.imread(ORIGINAL_IMAGE)
-noisey_img = add_bitflip_noise(orig_img_bw, 0.4)
-misc.imsave("img/noisey_bw.png", noisey_img)
+for p in np.linspace(0, 0.4, 5):
+    orig_img_bw = misc.imread(ORIGINAL_IMAGE)
+    noisey_img = add_bitflip_noise(orig_img_bw, p)
+    misc.imsave("img/noisey_bw_{}.png".format(int(p*10)), noisey_img)
 
 print empirical(orig_img_bw, NEIGHBORHOOD)
 
