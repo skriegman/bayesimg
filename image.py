@@ -15,7 +15,7 @@ from matplotlib.transforms import BlendedGenericTransform
 #sns.set_palette("Set2", 10)
 
 
-ORIGINAL_IMAGE = "img/true_img_bw.png"  # "img/true_img.jpg"
+ORIGINAL_IMAGE = "img/true_img_bw.png"  
 NEIGHBORHOOD = np.array([[0, 1, 0],
                          [1, 0, 1],
                          [0, 1, 0]])
