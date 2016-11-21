@@ -3,16 +3,16 @@ from scipy import stats
 from copy import deepcopy
 from PIL import Image
 from scipy import ndimage, misc
-import seaborn as sns
+#import seaborn as sns
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.transforms import BlendedGenericTransform
 
 
-sns.set(color_codes=True, context="poster")
-sns.set_style("white")
-sns.set_palette("Set2", 10)
+#sns.set(color_codes=True, context="poster")
+#sns.set_style("white")
+#sns.set_palette("Set2", 10)
 
 
 ORIGINAL_IMAGE = "img/true_img_bw.png"  # "img/true_img.jpg"
@@ -38,12 +38,11 @@ def copy_with_flip_noise(bw_img, prob_flip):
 def copy_with_gaussian_noise(img, sigma=50):
     clone = deepcopy(img)
     noise = np.abs(np.random.normal(0, scale=sigma, size=img.shape))
-    clone += np.asarray(noise, dtype=np.uint8)
-
-    # TODO: bounce back out of bounds noise (over 255)
-    # out_bounds = clone > 255
-    # clone[out_bounds] -= 2 * noise[out_bounds]
-
+    subtraction = clone - noise
+    addition = clone + noise
+    boolz = np.array(clone == 255)
+    result = np.where(boolz, subtraction, addition)
+    plt.imshow(result)
     return clone
 
 
@@ -99,15 +98,15 @@ def metropolis(y, sigma, max_iter, beta, plot=True):
 
             if u < p:
                 x[coords] = x_i_prime
-                print coords
+                print(coords)
 
 
-sigma = 50
+sigma = 130
 orig_img_bw = misc.imread(ORIGINAL_IMAGE)
 noisy_img = copy_with_gaussian_noise(orig_img_bw, sigma=sigma)
 misc.imsave("img/noisy_bw_{}.png".format(sigma), noisy_img)
 
 y = misc.imread("img/noisy_bw_{}.png".format(sigma))
 
-metropolis(y, sigma, max_iter=1000, beta=50)
+#metropolis(y, sigma, max_iter=1000, beta=50)
 
