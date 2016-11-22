@@ -1,19 +1,9 @@
 import numpy as np
-from scipy import stats
+import time
 from copy import deepcopy
 from PIL import Image
 from scipy import ndimage, misc
-from itertools import product
-#import seaborn as sns
-import matplotlib.patches as mpatches
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.transforms import BlendedGenericTransform
-
-
-#sns.set(color_codes=True, context="poster")
-#sns.set_style("white")
-#sns.set_palette("Set2", 10)
+# import matplotlib.pyplot as plt
 
 
 ORIGINAL_IMAGE = "img/true_img_bw.png"  
@@ -46,8 +36,8 @@ def copy_with_gaussian_noise(img, sigma=50):
     boolz = np.array(clone == 255)
     result = np.where(boolz, subtraction, addition)
 
-    plt.imshow(result, cmap=plt.get_cmap('gray'))
-    plt.show()
+    # plt.imshow(result, cmap=plt.get_cmap('gray'))
+    # plt.show()
     return result
 
 
@@ -59,48 +49,71 @@ def empirical(bw_img, neighborhood):
     return distribution
 
 
-def sum_neighbors(coords, padded_img):
-    x, y = coords
-    neighborhood = np.array([(x, y+1), (x, y-1), (x+1, y), (x-1, y)])
-    return np.sum(padded_img[neighborhood])
+def sum_neighbors(idx, img, x_lim, y_lim):
+
+    left_edge = idx % x_lim == 0
+    right_edge = idx % x_lim == x_lim - 1
+    top_edge = idx < x_lim
+    bottom_edge = idx >= x_lim*y_lim - x_lim
+
+    neighborhood_dict = {"left": idx-1,
+                         "right": idx+1,
+                         "top": idx-x_lim,
+                         "bottom": idx+x_lim}
+
+    if left_edge:
+        neighborhood_dict.pop("left")
+    if right_edge:
+        neighborhood_dict.pop("right")
+    if top_edge:
+        neighborhood_dict.pop("top")
+    if bottom_edge:
+        neighborhood_dict.pop("bottom")
+
+    neighbors_indices = np.array([v for k, v in neighborhood_dict.items()])
+
+    return np.sum(img[neighbors_indices]), len(neighbors_indices)
 
 
-def metropolis(y, sigma, max_iter, beta, plot=True):
+def metropolis(y, sigma, beta, max_iter=100000000, max_time=None, save_every=500):
 
-    y = y[50:100, 100:150]
-    y_pad = np.pad(y, 1, 'constant')
-    coords = [(row, col) for row, col in product(range(y.shape[0]), range(y.shape[1]))]
-    y = y.flatten()  # todo: make sure this is in the same order as coords
+    # y is noisy image, x is the binary guess
 
-    if plot:
-        plt.ion()
-    # y is noisy image
+    start_time = time.time()
+
+    x_lim, y_lim = y.shape
+    y = y.flatten()
     x = np.round(np.random.random(y.shape), 0)
 
     accept_count = 0
     evaluate_count = 0
 
     for t in range(max_iter):
+
+        # save image
+        if t % save_every == 0:
+            misc.imsave("result_{}.png".format(t), x.reshape(x_lim, y_lim))
+
+        # check the time
+        if time.time() - start_time > max_time:
+            return x, float(accept_count) / float(evaluate_count)
+
         sites_to_visit = [a for a in range(y.size)]
 
-        if t % 50 == 0:
+        if t % 100 == 0:
             print "Iteration " + str(t)
 
         for pixel in range(y.size):
             evaluate_count += 1
 
-            if plot:
-                plt.imshow(x)
-                plt.pause(0.05)
-
             i = sites_to_visit.pop(np.random.randint(0, len(sites_to_visit)))
-            # coords = np.unravel_index(i, dims=y.shape)  # this is a tuple
 
             y_i = y[i]
             x_i = x[i]
             x_i_prime = 1 - x_i
-            k_b = sum_neighbors(coords[i], y_pad)
-            k_w = 4 - k_b
+
+            k_b, num_neighbors = sum_neighbors(i, x, x_lim, y_lim)
+            k_w = num_neighbors - k_b
 
             k = k_b if x_i else k_w
             d = beta * k - (y_i - x_i)**2 / float(2 * sigma**2)
@@ -114,32 +127,40 @@ def metropolis(y, sigma, max_iter, beta, plot=True):
             if u < p:
                 x[i] = x_i_prime
                 accept_count += 1
-                # print(coords)
 
-    return x, accept_count / evaluate_count
+    return x, float(accept_count) / float(evaluate_count)
 
-sigma = 50
+
+sigma = 10  # todo : change this
+
 orig_img_bw = misc.imread(ORIGINAL_IMAGE)
 noisy_img = copy_with_gaussian_noise(orig_img_bw, sigma=sigma)
 misc.imsave("img/noisy_bw_{}.png".format(sigma), noisy_img)
 
 y = misc.imread("img/noisy_bw_{}.png".format(sigma))
 
+x_lo = 75
+x_hi = 100
+y_lo = 125
+y_hi = 150
 
-plt.imshow(orig_img_bw[50:100, 100:150], cmap=plt.get_cmap('gray'))
-plt.show()
+y = y[x_lo:x_hi, y_lo:y_hi]
 
-plt.imshow(noisy_img[50:100, 100:150], cmap=plt.get_cmap('gray'))
-plt.show()
+# plt.imshow(orig_img_bw[x_lo:x_hi, y_lo:y_hi], cmap=plt.get_cmap('gray'))
+# plt.show()
+#
+# plt.imshow(noisy_img[x_lo:x_hi, y_lo:y_hi], cmap=plt.get_cmap('gray'))
+# plt.show()
 
-
-x, accept_rate = metropolis(y, sigma, max_iter=1000, beta=0.7, plot=False)
+# beta 0.1 no clumps, 0.7 clumps,
+x, accept_rate = metropolis(y, sigma=sigma, max_time=60*60*2.5, beta=0.5)
 print "accept rate: " + str(accept_rate)
-y = y[50:100, 100:150]
-print x.size
-print y.shape
-x = np.reshape(x, y.shape)
-plt.imshow(x, cmap=plt.get_cmap('gray'))
-plt.show()
 
-print "omg we finished"
+x = np.reshape(x, y.shape)
+
+misc.imsave('final_result.png', x)
+
+# plt.imshow(x, cmap=plt.get_cmap('gray'))
+# plt.show()
+
+
