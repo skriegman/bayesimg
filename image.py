@@ -83,7 +83,10 @@ def metropolis(y, sigma, beta, max_iter=100000000, max_time=None, save_every=500
 
     x_lim, y_lim = y.shape
     y = y.flatten()
-    x = np.round(np.random.random(y.shape), 0)
+    x = np.round(np.random.random(y.shape), 1)
+    saved_x = np.reshape(x, (1, y.size))
+    print(saved_x.shape)
+    print(saved_x)
 
     accept_count = 0
     evaluate_count = 0
@@ -96,12 +99,12 @@ def metropolis(y, sigma, beta, max_iter=100000000, max_time=None, save_every=500
 
         # check the time
         if time.time() - start_time > max_time:
-            return x, float(accept_count) / float(evaluate_count)
+            return saved_x, float(accept_count) / float(evaluate_count)
 
         sites_to_visit = [a for a in range(y.size)]
 
         if t % 100 == 0:
-            print "Iteration " + str(t)
+            print("Iteration " + str(t))
 
         for pixel in range(y.size):
             evaluate_count += 1
@@ -127,8 +130,13 @@ def metropolis(y, sigma, beta, max_iter=100000000, max_time=None, save_every=500
             if u < p:
                 x[i] = x_i_prime
                 accept_count += 1
+        
+        
+        saved_x = np.concatenate((saved_x, np.reshape(x, (1, y.size))))
+        print(saved_x.shape)
+        
 
-    return x, float(accept_count) / float(evaluate_count)
+    return saved_x, float(accept_count) / float(evaluate_count)
 
 
 sigma = 10  # todo : change this
@@ -153,12 +161,12 @@ y = y[x_lo:x_hi, y_lo:y_hi]
 # plt.show()
 
 # beta 0.1 no clumps, 0.7 clumps,
-x, accept_rate = metropolis(y, sigma=sigma, max_time=60*60*2.5, beta=0.5)
-print "accept rate: " + str(accept_rate)
+result, accept_rate = metropolis(y, sigma=sigma, max_time=6, beta=0.5)
+print("accept rate: " + str(accept_rate))
 
-x = np.reshape(x, y.shape)
+#x = np.reshape(x, y.shape)
 
-misc.imsave('final_result.png', x)
+#misc.imsave('final_result.png', x)
 
 # plt.imshow(x, cmap=plt.get_cmap('gray'))
 # plt.show()
