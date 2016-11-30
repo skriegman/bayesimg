@@ -3,7 +3,7 @@ import time
 from copy import deepcopy
 from PIL import Image
 from scipy import ndimage, misc
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 
 ORIGINAL_IMAGE = "img/true_img_bw.png"  
@@ -75,7 +75,7 @@ def sum_neighbors(idx, img, x_lim, y_lim):
     return np.sum(img[neighbors_indices]), len(neighbors_indices)
 
 
-def metropolis(y, sigma, beta, max_iter=100000000, max_time=None, save_every=500):
+def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=500):
 
     # y is noisy image, x is the binary guess
 
@@ -83,10 +83,8 @@ def metropolis(y, sigma, beta, max_iter=100000000, max_time=None, save_every=500
 
     x_lim, y_lim = y.shape
     y = y.flatten()
-    x = np.round(np.random.random(y.shape), 1)
+    x = np.round(np.random.random(y.shape), 0)
     saved_x = np.reshape(x, (1, y.size))
-    print(saved_x.shape)
-    print(saved_x)
 
     accept_count = 0
     evaluate_count = 0
@@ -132,12 +130,16 @@ def metropolis(y, sigma, beta, max_iter=100000000, max_time=None, save_every=500
                 accept_count += 1
         
         
-        saved_x = np.concatenate((saved_x, np.reshape(x, (1, y.size))))
-        print(saved_x.shape)
-        
+        saved_x = np.concatenate((saved_x, np.reshape(x, (1, y.size))))        
 
     return saved_x, float(accept_count) / float(evaluate_count)
 
+
+def traceplot(pixel_sample):
+    x = np.array(range(0, pixel_sample.size))
+    plt.plot(x, pixel_sample)
+    plt.title("Tracplot")
+    
 
 sigma = 10  # todo : change this
 
@@ -145,14 +147,14 @@ orig_img_bw = misc.imread(ORIGINAL_IMAGE)
 noisy_img = copy_with_gaussian_noise(orig_img_bw, sigma=sigma)
 misc.imsave("img/noisy_bw_{}.png".format(sigma), noisy_img)
 
-y = misc.imread("img/noisy_bw_{}.png".format(sigma))
+noisy_subimg = misc.imread("img/noisy_bw_{}.png".format(sigma))
 
 x_lo = 75
 x_hi = 100
 y_lo = 125
 y_hi = 150
 
-y = y[x_lo:x_hi, y_lo:y_hi]
+noisy_subimg = noisy_subimg[x_lo:x_hi, y_lo:y_hi]
 
 # plt.imshow(orig_img_bw[x_lo:x_hi, y_lo:y_hi], cmap=plt.get_cmap('gray'))
 # plt.show()
@@ -161,8 +163,27 @@ y = y[x_lo:x_hi, y_lo:y_hi]
 # plt.show()
 
 # beta 0.1 no clumps, 0.7 clumps,
-result, accept_rate = metropolis(y, sigma=sigma, max_time=6, beta=0.5)
+result, accept_rate = metropolis(noisy_subimg, sigma=sigma, beta=0.5, max_time=60*3)
 print("accept rate: " + str(accept_rate))
+
+'''Marginal Posterior Modes (MPM) estimator, which
+is defined as
+ 0, if Prob (xi = 1|y) > 1/2
+ 1, if Prob (xi = 1|y) ≤ 1/2
+and is easily calculated by counting the number of times xi is equal to 1.
+'''
+
+def MPM(samples, shape):
+    sums = np.sum(samples, axis=0)
+    boolz = np.array(sums > samples.shape[0]/2)
+    print(samples.shape[1])
+    image = np.reshape(np.where(boolz, 0, 1), shape)
+    plt.imshow(image)
+    plt.show()
+    return image
+    
+    
+MPMimage = MPM(result, noisy_subimg.shape)
 
 #x = np.reshape(x, y.shape)
 
