@@ -74,8 +74,12 @@ def sum_neighbors(idx, img, x_lim, y_lim):
 
     return np.sum(img[neighbors_indices]), len(neighbors_indices)
 
-
-def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=500):
+def temperature(t):
+    T_0 = 4
+    eda = 0.999
+    return T_0 * eda**(t - 1)
+    
+def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=500, MAP=False):
 
     # y is noisy image, x is the binary guess
 
@@ -87,9 +91,11 @@ def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=50
     saved_x = np.reshape(x, (1, y.size))
 
     accept_count = 0
-    evaluate_count = 0
+    evaluate_count = 0 
 
     for t in range(max_iter):
+
+        T = temperature(t + 1) # f simulated annealing (MAP estimator)
 
         # save image
         if t % save_every == 0:
@@ -123,12 +129,15 @@ def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=50
             d_prime = beta * k - (y_i - x_i_prime) ** 2 / float(2 * sigma ** 2)
 
             u = np.random.random()
-            p = np.exp(min(d_prime - d, 0))
+            
+            if(MAP == True):
+                p = np.exp(min(d_prime - d, 0)/T)
+            else:
+                p = np.exp(min(d_prime - d, 0))
 
             if u < p:
                 x[i] = x_i_prime
                 accept_count += 1
-        
         
         saved_x = np.concatenate((saved_x, np.reshape(x, (1, y.size))))        
 
@@ -141,7 +150,7 @@ def traceplot(pixel_sample):
     plt.title("Tracplot")
     
 
-sigma = 10  # todo : change this
+sigma = 100  # todo : change this
 
 orig_img_bw = misc.imread(ORIGINAL_IMAGE)
 noisy_img = copy_with_gaussian_noise(orig_img_bw, sigma=sigma)
@@ -163,7 +172,7 @@ noisy_subimg = noisy_subimg[x_lo:x_hi, y_lo:y_hi]
 # plt.show()
 
 # beta 0.1 no clumps, 0.7 clumps,
-result, accept_rate = metropolis(noisy_subimg, sigma=sigma, beta=0.5, max_time=60*3)
+result, accept_rate = metropolis(noisy_subimg, sigma=sigma, beta=0.7, max_time=60*3, MAP=True)
 print("accept rate: " + str(accept_rate))
 
 '''Marginal Posterior Modes (MPM) estimator, which
