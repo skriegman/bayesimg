@@ -174,14 +174,24 @@ save_every = 10000
 max_iter = 5000
 
 
-# convert_to_black_white()
-orig_img_bw = misc.imread("img/true_img_bw.png")
-noisy_img = copy_with_gaussian_noise(orig_img_bw, sigma=sigma)
-misc.imsave("img/noisy_bw_{}.png".format(sigma), noisy_img)
+# # convert_to_black_white()
+# orig_img_bw = misc.imread("img/true_img_bw.png")
+# noisy_img = copy_with_gaussian_noise(orig_img_bw, sigma=sigma)
+# misc.imsave("img/noisy_bw_{}.png".format(sigma), noisy_img)
 
-result, accept_rate = metropolis(noisy_img, sigma=sigma, beta=beta, max_iter=max_iter, MAP=MAP, save_every=save_every,
-                                 burn_in=burn_in)
-print("accept rate: " + str(accept_rate))
+# result, accept_rate = metropolis(noisy_img, sigma=sigma, beta=beta, max_iter=max_iter, MAP=MAP, save_every=save_every,
+#                                  burn_in=burn_in)
+# print("accept rate: " + str(accept_rate))
+#
+# MPMimage = MPM(result, noisy_img.shape)
 
-MPMimage = MPM(result, noisy_img.shape)
 
+orig_img = misc.imread("img/true_img_bw.png")
+MAP = misc.imread("img/MAP_estimate_90.png")
+MPM = misc.imread("img/MPM_estimate_90.png")
+print MAP
+
+map_error = np.mean(np.abs(orig_img - MAP))
+mpm_error = np.mean(np.abs(orig_img - MPM))
+
+print map_error/255., mpm_error/255.
