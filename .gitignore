@@ -92,3 +92,7 @@ ENV/
 
 .gitignore
 .idea/
+deploy.sh
+single_runner
+submit.sh
+

@@ -6,13 +6,7 @@ from scipy import ndimage, misc
 import matplotlib.pyplot as plt
 
 
-ORIGINAL_IMAGE = "img/true_img_bw.png"  
-NEIGHBORHOOD = np.array([[0, 1, 0],
-                         [1, 0, 1],
-                         [0, 1, 0]])
-
-
-def convert_to_black_white(filename="img/true_img.jpg", new_name="img/true_img_bw.png"):
+def convert_to_black_white(filename="img/true_img.png", new_name="img/true_img_bw.png"):
     color_img = Image.open(filename)
     gray_img = color_img.convert('L')
     black_white_img = gray_img.point(lambda x: 0 if x < 128 else 255, '1')
@@ -74,14 +68,19 @@ def sum_neighbors(idx, img, x_lim, y_lim):
 
     return np.sum(img[neighbors_indices]), len(neighbors_indices)
 
+
 def temperature(t):
     T_0 = 4
     eda = 0.999
     return T_0 * eda**(t - 1)
-    
+
+
 def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=500, MAP=False):
 
     # y is noisy image, x is the binary guess
+
+    y = y / 255.  # normalize
+    sigma /= 255.
 
     start_time = time.time()
 
@@ -94,8 +93,6 @@ def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=50
     evaluate_count = 0 
 
     for t in range(max_iter):
-
-        T = temperature(t + 1) # f simulated annealing (MAP estimator)
 
         # save image
         if t % save_every == 0:
@@ -130,8 +127,8 @@ def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=50
 
             u = np.random.random()
             
-            if(MAP == True):
-                p = np.exp(min(d_prime - d, 0)/T)
+            if MAP:
+                p = np.exp(min(d_prime - d, 0) / temperature(t + 1))  # f simulated annealing (MAP estimator)
             else:
                 p = np.exp(min(d_prime - d, 0))
 
@@ -148,22 +145,42 @@ def traceplot(pixel_sample):
     x = np.array(range(0, pixel_sample.size))
     plt.plot(x, pixel_sample)
     plt.title("Tracplot")
-    
 
-sigma = 100  # todo : change this
 
-orig_img_bw = misc.imread(ORIGINAL_IMAGE)
+def MPM(samples, shape):
+    '''Marginal Posterior Modes (MPM) estimator, which
+    is defined as
+     0, if Prob (xi = 1|y) > 1/2
+     1, if Prob (xi = 1|y) =< 1/2
+    and is easily calculated by counting the number of times xi is equal to 1.
+    '''
+    sums = np.sum(samples, axis=0)
+    boolz = np.array(sums > samples.shape[0]/2)
+    print(samples.shape[1])
+    image = np.reshape(np.where(boolz, 0, 1), shape)
+    plt.imshow(image)
+    plt.show()
+    return image
+
+
+sigma = 100
+beta = 0.5
+
+# convert_to_black_white()
+orig_img_bw = misc.imread("img/true_img_bw.png")
 noisy_img = copy_with_gaussian_noise(orig_img_bw, sigma=sigma)
 misc.imsave("img/noisy_bw_{}.png".format(sigma), noisy_img)
 
-noisy_subimg = misc.imread("img/noisy_bw_{}.png".format(sigma))
+# noisy_subimg = misc.imread("img/noisy_bw_{}.png".format(sigma))
+#
+# x_lo = 75
+# x_hi = 100
+# y_lo = 125
+# y_hi = 150
+#
+# noisy_subimg = noisy_subimg[x_lo:x_hi, y_lo:y_hi]
+# misc.imsave("sub_img.png", noisy_subimg)
 
-x_lo = 75
-x_hi = 100
-y_lo = 125
-y_hi = 150
-
-noisy_subimg = noisy_subimg[x_lo:x_hi, y_lo:y_hi]
 
 # plt.imshow(orig_img_bw[x_lo:x_hi, y_lo:y_hi], cmap=plt.get_cmap('gray'))
 # plt.show()
@@ -172,27 +189,11 @@ noisy_subimg = noisy_subimg[x_lo:x_hi, y_lo:y_hi]
 # plt.show()
 
 # beta 0.1 no clumps, 0.7 clumps,
-result, accept_rate = metropolis(noisy_subimg, sigma=sigma, beta=0.7, max_time=60*3, MAP=True)
+result, accept_rate = metropolis(noisy_img, sigma=sigma, beta=beta, max_iter=5000, MAP=True)
 print("accept rate: " + str(accept_rate))
 
-'''Marginal Posterior Modes (MPM) estimator, which
-is defined as
- 0, if Prob (xi = 1|y) > 1/2
- 1, if Prob (xi = 1|y) ≤ 1/2
-and is easily calculated by counting the number of times xi is equal to 1.
-'''
-
-def MPM(samples, shape):
-    sums = np.sum(samples, axis=0)
-    boolz = np.array(sums > samples.shape[0]/2)
-    print(samples.shape[1])
-    image = np.reshape(np.where(boolz, 0, 1), shape)
-    plt.imshow(image)
-    plt.show()
-    return image
     
-    
-MPMimage = MPM(result, noisy_subimg.shape)
+MPMimage = MPM(result, noisy_img.shape)
 
 #x = np.reshape(x, y.shape)
 
