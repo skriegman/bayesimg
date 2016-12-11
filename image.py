@@ -75,7 +75,7 @@ def temperature(t):
     return T_0 * eda**(t - 1)
 
 
-def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=500, MAP=False):
+def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=100, MAP=False, burn_in=1):
 
     # y is noisy image, x is the binary guess
 
@@ -94,10 +94,6 @@ def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=50
 
     for t in range(max_iter):
 
-        # save image
-        if t % save_every == 0:
-            misc.imsave("result_{}.png".format(t), x.reshape(x_lim, y_lim))
-
         # check the time
         if time.time() - start_time > max_time:
             return saved_x, float(accept_count) / float(evaluate_count)
@@ -109,6 +105,11 @@ def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=50
 
         for pixel in range(y.size):
             evaluate_count += 1
+
+            # save image
+            if pixel % save_every == 0:
+                name = "MAP" if MAP else "MPM"
+                misc.imsave("{0}/{0}_{1}_{2}.png".format(name, t, pixel), x.reshape(x_lim, y_lim))
 
             i = sites_to_visit.pop(np.random.randint(0, len(sites_to_visit)))
 
@@ -135,8 +136,9 @@ def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=50
             if u < p:
                 x[i] = x_i_prime
                 accept_count += 1
-        
-        saved_x = np.concatenate((saved_x, np.reshape(x, (1, y.size))))        
+
+        if t >= burn_in:
+            saved_x = np.concatenate((saved_x, np.reshape(x, (1, y.size))))
 
     return saved_x, float(accept_count) / float(evaluate_count)
 
@@ -159,47 +161,27 @@ def MPM(samples, shape):
     print(samples.shape[1])
     image = np.reshape(np.where(boolz, 0, 1), shape)
     plt.imshow(image)
+    misc.imsave("img/MPM_estimate.png", 1-image)
     plt.show()
     return image
 
 
-sigma = 100
-beta = 0.5
+MAP = True
+burn_in = 0  # set to zero for MAP movie
+sigma = 90
+beta = 0.7  # 0.6 for MAP (?)
+save_every = 10000
+max_iter = 5000
+
 
 # convert_to_black_white()
 orig_img_bw = misc.imread("img/true_img_bw.png")
 noisy_img = copy_with_gaussian_noise(orig_img_bw, sigma=sigma)
 misc.imsave("img/noisy_bw_{}.png".format(sigma), noisy_img)
 
-# noisy_subimg = misc.imread("img/noisy_bw_{}.png".format(sigma))
-#
-# x_lo = 75
-# x_hi = 100
-# y_lo = 125
-# y_hi = 150
-#
-# noisy_subimg = noisy_subimg[x_lo:x_hi, y_lo:y_hi]
-# misc.imsave("sub_img.png", noisy_subimg)
-
-
-# plt.imshow(orig_img_bw[x_lo:x_hi, y_lo:y_hi], cmap=plt.get_cmap('gray'))
-# plt.show()
-#
-# plt.imshow(noisy_img[x_lo:x_hi, y_lo:y_hi], cmap=plt.get_cmap('gray'))
-# plt.show()
-
-# beta 0.1 no clumps, 0.7 clumps,
-result, accept_rate = metropolis(noisy_img, sigma=sigma, beta=beta, max_iter=5000, MAP=True)
+result, accept_rate = metropolis(noisy_img, sigma=sigma, beta=beta, max_iter=max_iter, MAP=MAP, save_every=save_every,
+                                 burn_in=burn_in)
 print("accept rate: " + str(accept_rate))
 
-    
 MPMimage = MPM(result, noisy_img.shape)
-
-#x = np.reshape(x, y.shape)
-
-#misc.imsave('final_result.png', x)
-
-# plt.imshow(x, cmap=plt.get_cmap('gray'))
-# plt.show()
-
 
