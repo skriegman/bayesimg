@@ -20,6 +20,7 @@ def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=10
 
     accept_count = 0
     evaluate_count = 0
+    plot_count = 0
 
     for t in range(max_iter):
 
@@ -30,15 +31,17 @@ def metropolis(y, sigma, beta, max_iter=1000000, max_time=1000000, save_every=10
         sites_to_visit = [a for a in range(y.size)]
 
         if t % 100 == 0:
-            print("Iteration " + str(t))
+            print "Iteration " + str(t)
+            print "error ", np.mean(np.abs(y - x))
 
         for pixel in range(y.size):
             evaluate_count += 1
 
             # save image
             if pixel % save_every == 0:
+                plot_count += 1
                 name = "MAP" if MAP else "MPM"
-                misc.imsave("{0}/{0}_{1}_{2}.png".format(name, t, pixel), x.reshape(x_lim, y_lim))
+                misc.imsave("{0}/{0}_{1}.png".format(name, plot_count), x.reshape(x_lim, y_lim))
 
             i = sites_to_visit.pop(np.random.randint(0, len(sites_to_visit)))
 
