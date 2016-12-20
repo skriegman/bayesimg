@@ -2,7 +2,7 @@ import numpy as np
 from scipy import misc
 
 from utils import convert_to_black_white, copy_with_gaussian_noise, MPM
-from base import metropolis
+from metropolis import metropolis
 
 SEED = 1
 MAP = True
